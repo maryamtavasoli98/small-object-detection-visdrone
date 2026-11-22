@@ -1,0 +1,14 @@
+{
+  "mode": "plain",
+  "imgsz": 1024,
+  "tile": null,
+  "overlap": null,
+  "include_full": null,
+  "conf": 0.001,
+  "nms_iou": 0.6,
+  "images": 548,
+  "detections": 323416,
+  "tiles_per_image": null,
+  "seconds_per_image": 0.011354818825021958,
+  "device": "mps"
+}

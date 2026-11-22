@@ -1,0 +1,14 @@
+{
+  "mode": "tiled",
+  "imgsz": 640,
+  "tile": 640,
+  "overlap": 0.2,
+  "include_full": true,
+  "conf": 0.001,
+  "nms_iou": 0.6,
+  "images": 548,
+  "detections": 485273,
+  "tiles_per_image": 6.186131386861314,
+  "seconds_per_image": 0.062301758763016656,
+  "device": "mps"
+}

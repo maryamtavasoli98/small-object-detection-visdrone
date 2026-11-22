@@ -1,0 +1,21 @@
+{
+  "split": "val",
+  "images": 548,
+  "kept_boxes": 38759,
+  "ignored_regions": 1410,
+  "dropped_others": 0,
+  "dropped_degenerate": 0,
+  "per_class": {
+    "car": 14064,
+    "pedestrian": 8844,
+    "people": 5125,
+    "motor": 4886,
+    "van": 1975,
+    "bicycle": 1287,
+    "tricycle": 1045,
+    "truck": 750,
+    "awning-tricycle": 532,
+    "bus": 251
+  },
+  "coco_annotations": 38759
+}

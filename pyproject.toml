@@ -1,0 +1,45 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "smallobj"
+version = "0.1.0"
+description = "Small-object detection on VisDrone: scale-aware evaluation, tiled inference and D-RISE explanations"
+readme = "README.md"
+requires-python = ">=3.10"
+license = "AGPL-3.0-or-later"
+authors = [{ name = "Maryam Tavasoli" }]
+dependencies = [
+    "ultralytics>=8.3",
+    "torch>=2.2",
+    "torchvision>=0.17",
+    "pycocotools>=2.0.7",
+    "numpy>=1.26",
+    "opencv-python>=4.9",
+    "matplotlib>=3.8",
+    "pandas>=2.1",
+    "pyyaml>=6.0",
+    "tqdm>=4.66",
+    "scipy>=1.11",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0", "ruff>=0.5"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py310"
+src = ["src", "scripts", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff.lint.per-file-ignores]
+"scripts/update_readme.py" = ["E501"]  # long Markdown table strings

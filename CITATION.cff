@@ -1,0 +1,10 @@
+cff-version: 1.2.0
+message: "If you use this code, please cite it as below."
+title: "Small-object detection on VisDrone: scale-aware evaluation, tiled inference and black-box explanations"
+authors:
+  - family-names: Tavasoli
+    given-names: Maryam
+    orcid: "https://orcid.org/0009-0006-3535-4724"
+repository-code: "https://github.com/maryamtavasoli98/small-object-detection-visdrone"
+license: AGPL-3.0-or-later
+date-released: 2026-11-21

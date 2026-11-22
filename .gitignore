@@ -1,0 +1,23 @@
+# data, weights and run outputs stay out of git (see README for how to regenerate)
+data/
+runs/
+weights/*.pt
+*.pt
+!results/**
+outputs/
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+build/
+dist/
+.DS_Store
+report/paper-orchestra/cache/
+report/paper-orchestra/refinement/
+results/predictions/*/predictions.json
+results/predictions/*/gt_subset.json
+
+# temporary: report is added with the explanation results
+report/

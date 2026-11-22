@@ -1,0 +1,20 @@
+{
+  "name": "y11n_640",
+  "init": "yolo11n.pt",
+  "imgsz": 640,
+  "epochs_requested": 30,
+  "epochs_run": 30,
+  "batch": 16,
+  "seed": 0,
+  "fraction": 1.0,
+  "device": "mps",
+  "hardware": "arm64 / torch 2.15.0",
+  "train_seconds": 8704,
+  "params": 2607070,
+  "best_epoch": 30,
+  "val_mAP50_95_ultralytics": 0.16511,
+  "val_mAP50_ultralytics": 0.29851,
+  "val_precision": 0.43214,
+  "val_recall": 0.31175,
+  "weights": "runs/y11n_640/weights/best.pt"
+}

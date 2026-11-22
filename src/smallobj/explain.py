@@ -100,9 +100,13 @@ def drise(
         masks = generate_masks(k, (h, w), grid, p, rng)
         dets = predict_batch(model, [apply_mask(image, m) for m in masks], imgsz, conf, 0.6, 300, device)
         for m, d in zip(masks, dets, strict=True):
-            sal += similarity(target_xyxy, target_cls, d) * m
+            # mean-centred estimator: sum_i w_i (M_i - p). The plain weighted mean sum_i w_i M_i carries a
+            # constant offset p * sum_i w_i that makes the map look almost flat and swamps mass statistics;
+            # removing it does not change the pixel ranking used by the deletion/insertion curves.
+            sal += similarity(target_xyxy, target_cls, d) * (m - p)
         done += k
     sal /= max(n_masks * p, 1e-12)
+    sal = np.clip(sal, 0.0, None)
     if sal.max() > 0:
         sal = sal / sal.max()
     return DriseResult(sal.astype(np.float32), base, n_masks)
@@ -130,21 +134,26 @@ def deletion_insertion(
     target_cls: int,
     imgsz: int,
     order: str = "saliency",
-    steps: int = 20,
+    steps: int = 24,
     batch: int = 16,
     conf: float = 0.01,
     device=None,
     rng: np.random.Generator | None = None,
+    min_fraction: float = 1e-4,
 ) -> dict:
     """Deletion and insertion curves for one target. Returns fractions, scores and AUCs.
 
     Deletion replaces pixels (in ``order``) of the original image by a heavily blurred copy;
     insertion starts from the blurred copy and restores pixels. Scores are the D-RISE
     similarity of the target, normalised by the unmasked score so curves start/end near 1.
+
+    The removed fractions are log-spaced from ``min_fraction`` to 1 (plus 0). A tiny object covers
+    ~0.05 % of a 640 px tile, so linear 5 % steps would remove it entirely in the first step and every
+    map would hit the same floor. AUCs are computed over x = log-fraction rescaled to [0, 1].
     """
     h, w = image.shape[:2]
     idx = pixel_order(saliency, order, rng)
-    fractions = np.linspace(0.0, 1.0, steps + 1)
+    fractions = np.concatenate([[0.0], log_fractions(steps, min_fraction)])
     blurred = _blurred(image)
     del_imgs, ins_imgs = [], []
     for f in fractions:
@@ -172,9 +181,21 @@ def deletion_insertion(
         "fractions": fractions.tolist(),
         "deletion": d.tolist(),
         "insertion": ins.tolist(),
-        "deletion_auc": float(np.trapezoid(d, fractions)),
-        "insertion_auc": float(np.trapezoid(ins, fractions)),
+        "deletion_auc": log_auc(fractions[1:], d[1:]),
+        "insertion_auc": log_auc(fractions[1:], ins[1:]),
     }
+
+
+def log_fractions(steps: int, min_fraction: float = 1e-4) -> np.ndarray:
+    """``steps`` fractions log-spaced from ``min_fraction`` to 1 (inclusive)."""
+    return np.logspace(np.log10(min_fraction), 0.0, steps)
+
+
+def log_auc(fractions: np.ndarray, scores: np.ndarray) -> float:
+    """Area under ``scores`` against log10(fraction) rescaled to [0, 1] (fractions must be > 0)."""
+    x = np.log10(np.asarray(fractions, dtype=np.float64))
+    x = (x - x[0]) / max(x[-1] - x[0], 1e-12)
+    return float(np.trapezoid(np.asarray(scores, dtype=np.float64), x))
 
 
 def saliency_stats(saliency: np.ndarray, target_xyxy: np.ndarray, quantile: float = 0.9) -> dict:

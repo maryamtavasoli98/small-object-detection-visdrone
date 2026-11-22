@@ -54,3 +54,15 @@ def test_filter_ignored_regions():
     )
     kept = det.filter_ignored([(0, 0, 20, 20)])
     assert len(kept) == 1 and kept.xyxy[0, 0] == 100
+
+
+def test_log_fractions_and_auc():
+    from smallobj.explain import log_auc, log_fractions
+
+    f = log_fractions(24, 1e-4)
+    assert len(f) == 24 and np.isclose(f[0], 1e-4) and np.isclose(f[-1], 1.0)
+    assert np.isclose(log_auc(f, np.ones_like(f)), 1.0)
+    assert np.isclose(log_auc(f, np.zeros_like(f)), 0.0)
+    # a score that drops to 0 once 1e-2 of the pixels are gone covers half of the log axis
+    step = (f < 1e-2).astype(float)
+    assert 0.4 < log_auc(f, step) < 0.6

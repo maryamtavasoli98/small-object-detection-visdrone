@@ -144,7 +144,7 @@ def table_explain() -> str:
         rows.append(
             f"| {b} | {r['n']} | {r['mean_side_px']:.0f} | {r['deletion_auc_drise']['mean']:.2f} ± {r['deletion_auc_drise']['std']:.2f} | "
             f"{r['deletion_auc_random']['mean']:.2f} ± {r['deletion_auc_random']['std']:.2f} | {r['insertion_auc_drise']['mean']:.2f} ± {r['insertion_auc_drise']['std']:.2f} | "
-            f"{r['insertion_auc_random']['mean']:.2f} ± {r['insertion_auc_random']['std']:.2f} | {pct(r['mass_in_box']['mean'])} | {pct(r['box_area_frac']['mean'])} | {pct(r['area_frac_90']['mean'])} |"
+            f"{r['insertion_auc_random']['mean']:.2f} ± {r['insertion_auc_random']['std']:.2f} | {pct(r['mass_in_box']['mean'])} | {100 * r['box_area_frac']['mean']:.2f} % | {pct(r['area_frac_90']['mean'])} |"
         )
     st = d["settings"]
     rows.append("")

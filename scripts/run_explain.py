@@ -136,7 +136,12 @@ def panel(crop_img: np.ndarray, sal: np.ndarray, rec: dict, curves: dict, path: 
     axes[2].imshow(sal[cy1:cy2, cx1:cx2], cmap="jet", alpha=0.45)
     axes[2].add_patch(plt.Rectangle((x1 - cx1, y1 - cy1), x2 - x1, y2 - y1, fill=False, color="white", lw=1.2))
     axes[2].set_title("zoom around the target", fontsize=9)
-    f = curves["saliency"]["fractions"]
+    f = curves["saliency"]["fractions"][1:]  # log-spaced, drop the 0 point for the log axis
+    for key in ("saliency", "random"):
+        curves = {
+            **curves,
+            key: {**curves[key], "deletion": curves[key]["deletion"][1:], "insertion": curves[key]["insertion"][1:]},
+        }
     axes[3].plot(
         f,
         curves["saliency"]["deletion"],
@@ -161,7 +166,8 @@ def panel(crop_img: np.ndarray, sal: np.ndarray, rec: dict, curves: dict, path: 
         "b:",
         label=f"insertion, random order (AUC {curves['random']['insertion_auc']:.2f})",
     )
-    axes[3].set_xlabel("fraction of pixels removed / inserted")
+    axes[3].set_xscale("log")
+    axes[3].set_xlabel("fraction of pixels removed / inserted (log scale)")
     axes[3].set_ylabel("target score (normalised)")
     axes[3].set_ylim(-0.05, 1.3)
     axes[3].legend(fontsize=6.5, frameon=False)
@@ -183,7 +189,7 @@ def main() -> None:
     ap.add_argument("--n-masks", type=int, default=1000)
     ap.add_argument("--grid", type=int, default=16)
     ap.add_argument("--select-conf", type=float, default=0.25)
-    ap.add_argument("--steps", type=int, default=20)
+    ap.add_argument("--steps", type=int, default=24, help="log-spaced steps from 1e-4 to 1")
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--panels-per-bin", type=int, default=2)
     args = ap.parse_args()
@@ -271,12 +277,14 @@ def main() -> None:
         }
     out = {
         "settings": {
-            "weights": args.weights,
+            "weights": str(Path(args.weights).resolve().relative_to(ROOT)),
             "tile": args.tile,
             "n_masks": args.n_masks,
             "grid": args.grid,
             "p": 0.5,
             "steps": args.steps,
+            "fractions": "0 plus log-spaced 1e-4 .. 1; AUC over log-fraction rescaled to [0, 1]",
+            "saliency": "mean-centred D-RISE, clipped at 0",
             "select_conf": args.select_conf,
             "n_per_bin": args.n_per_bin,
             "seed": args.seed,

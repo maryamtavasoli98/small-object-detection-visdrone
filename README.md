@@ -19,7 +19,9 @@ is resized to 640 px. This repository asks three concrete questions on [VisDrone
 0.085 on objects under 16 px (vs 0.570 on objects over 96 px). Tiled inference raises tiny-object AP50 to 0.199 and
 overall AP50 to 0.375 (tiles + full frame), at about 5× the inference time. A cheaper baseline is surprisingly strong:
 just feeding the same model a 1024 px frame at test time gives AP50 0.365 at no extra cost, so most of the tiling gain
-comes from resolution, and tiling's advantage is concentrated in the tiny and small bins.
+comes from resolution, and tiling's advantage is concentrated in the tiny and small bins. D-RISE saliency
+maps are faithful to the detector even for 13 px objects (deletion AUC 0.08 vs 0.78 for a random pixel order),
+but the evaluation protocol has to be adapted to tiny targets to show it.
 
 ![plain vs tiled](results/figures/qualitative_plain_vs_tiled.png)
 
@@ -71,11 +73,14 @@ against a brute-force NMS. Tiles are batched (8 per forward pass).
 soft masks (16×16 Bernoulli(0.5) grid, bilinearly upsampled with a random shift, as in RISE [4]),
 runs the detector on each masked tile and weights every mask by how well the target detection
 survives (IoU with the target box × confidence of the best same-class box). The saliency map is the
-weighted mean of the masks; 1,000 masks per detection. Because Ultralytics exposes one class and one
+mean-centred weighted sum Σ wᵢ(Mᵢ − p), clipped at 0; without the centring the map carries a constant offset and
+looks almost flat. 1,000 masks per detection. Because Ultralytics exposes one class and one
 confidence per box, the class term is an indicator rather than the cosine similarity between class
 vectors used in the paper. **Faithfulness** is measured with deletion and insertion curves [4]: pixels
-are removed from (or restored into) a blurred copy of the tile in order of decreasing saliency, in 20
-steps, and the target's score is tracked; a random pixel order is the reference. Lower deletion AUC
+are removed from (or restored into) a blurred copy of the tile in order of decreasing saliency, and the
+target's score is tracked; a random pixel order is the reference. The removed fractions are **log-spaced**
+(24 steps from 0.01 % to 100 %), because a tiny object covers only ~0.05 % of a tile: with linear 5 % steps it
+disappears in the first step and every map scores the same. AUCs are taken over the rescaled log-fraction. Lower deletion AUC
 and higher insertion AUC mean the map really marks what the detector uses. We also report how much
 saliency mass falls inside the target box and what fraction of the tile holds 90 % of the mass.
 
@@ -142,12 +147,39 @@ next thing to study.
 
 ### Explanations: is D-RISE faithful for tiny objects?
 <!-- table:explain -->
-_run `make explain`_
+| object size | n | mean side (px) | deletion AUC D-RISE ↓ | deletion AUC random | insertion AUC D-RISE ↑ | insertion AUC random | saliency mass inside box | box share of tile | tile share holding 90 % of mass |
+|---|---|---|---|---|---|---|---|---|---|
+| tiny | 8 | 13 | 0.08 ± 0.07 | 0.78 ± 0.09 | 0.41 ± 0.16 | 0.05 ± 0.03 | 1.3 % | 0.05 % | 29.8 % |
+| small | 8 | 26 | 0.22 ± 0.14 | 0.79 ± 0.09 | 0.46 ± 0.09 | 0.04 ± 0.02 | 3.7 % | 0.22 % | 33.1 % |
+| medium | 8 | 47 | 0.30 ± 0.13 | 0.77 ± 0.09 | 0.50 ± 0.15 | 0.03 ± 0.01 | 8.2 % | 0.62 % | 32.7 % |
+| large | 8 | 116 | 0.60 ± 0.13 | 0.80 ± 0.07 | 0.35 ± 0.14 | 0.12 ± 0.15 | 13.6 % | 4.40 % | 34.2 % |
+
+_True-positive detections (conf ≥ 0.25) on native-resolution 640 px val tiles, 1000 masks on a 16×16 grid, 24 deletion/insertion steps, removed pixels replaced by a blurred copy. Mean ± std over n detections._
 <!-- /table:explain -->
 
-The explanation code (`src/smallobj/explain.py`, `scripts/run_explain.py`) is complete and unit-tested; the
-faithfulness study (D-RISE vs random order, by object size) is being run now, and its table, figures and example
-panels will be added here in the next update.
+![faithfulness](results/figures/explain_faithfulness.png)
+
+- **D-RISE is clearly faithful, at every size.** Removing pixels in D-RISE order destroys the detection much faster
+  than removing them in random order (deletion AUC 0.08 vs 0.78 for tiny objects, 0.60 vs 0.80 for large ones), and
+  restoring them in D-RISE order brings it back much faster (insertion AUC 0.41 vs 0.05 for tiny objects).
+- **Absolute AUCs are not comparable across bins.** On a log-fraction axis, even a perfect map has to remove about
+  as many pixels as the box contains: about 0.05 % of the tile for a tiny object and 4 % for a large one. So the
+  higher deletion AUC for large objects mostly reflects their size, not worse maps. The fair comparison is D-RISE vs
+  random within each bin.
+- **The maps are focused at the top, diffuse at the bottom.** The target box holds 25× more saliency than its area
+  share for tiny objects (1.3 % of the mass in 0.05 % of the tile), 17× for small, 13× for medium and 3× for large
+  objects. But 90 %
+  of the mass is spread over about a third of the tile, so most of the map is low-level context and Monte-Carlo
+  noise. Only the highest-ranked pixels are sharp.
+- **Method lesson:** my first run used linear 5 % deletion steps and the plain (uncentred) D-RISE average. Every
+  tiny object then disappeared in the first step and all maps hit the same AUC floor (0.025), while the "mass inside
+  box" just equalled the box area. Both were fixed (log-spaced steps, mean-centred estimator) before these numbers
+  were produced.
+
+Example panels (tile, saliency, zoom, curves) for each size bin are in
+[`results/figures/explain/`](results/figures/explain/):
+
+![tiny pedestrian](results/figures/explain/tiny_2_pedestrian.png)
 
 ## What I learned
 
@@ -159,7 +191,9 @@ panels will be added here in the next update.
   confidence threshold all change the results, so the protocol is written down and every table is generated from
   JSON files rather than typed by hand.
 - Next steps: fine-tune at 1024 px (train and test at the same scale), add a second seed and a two-stage
-  baseline (Faster R-CNN), and finish the explanation study for tiny objects.
+  baseline (Faster R-CNN), and compare D-RISE with a gradient-based method on the same faithfulness test.
+- Check a metric before trusting it. Zero spread over eight different objects (deletion AUC 0.025 ± 0.000) was a
+  sign that the test had hit its floor, not that the maps were perfect.
 
 ## Limitations
 
@@ -198,8 +232,9 @@ src/smallobj/     visdrone.py (download/convert/COCO export)  tiling.py (tiles +
                 infer.py (plain + tiled inference)  evaluate.py (COCOeval with size bins)
                 explain.py (D-RISE, deletion/insertion)  stats.py (dataset figures)
 scripts/        prepare_data, make_stats, train, run_eval, run_explain, make_figures, update_readme
-tests/          21 CPU-only unit tests (tiling, conversion, evaluation, explanation utilities)
+tests/          22 CPU-only unit tests (tiling, conversion, evaluation, explanation utilities)
 results/        metrics/*.json (all numbers), figures/*.png, train/<run>/results.csv
+report/         short technical report (Markdown + PDF)
 ```
 
 ## References

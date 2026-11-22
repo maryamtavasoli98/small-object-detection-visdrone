@@ -19,5 +19,3 @@ report/paper-orchestra/refinement/
 results/predictions/*/predictions.json
 results/predictions/*/gt_subset.json
 
-# temporary: report is added with the explanation results
-report/
